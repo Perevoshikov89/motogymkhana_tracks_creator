@@ -7,6 +7,8 @@ import random
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from dataclasses import dataclass
+from pathlib import Path
+from PIL import Image
 
 
 # ============================================================
@@ -439,7 +441,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        self.title("Генератор трасс. powered by Motogymkhana Glazov")
+        self.title("Генератор трасс для мотоджимханы.")
         self.geometry("1180x780")
         self.minsize(900, 620)
 
@@ -455,7 +457,7 @@ class App(tk.Tk):
 
         ttk.Label(
             top,
-            text="Генератор трасс для мотоджимханы",
+            text="Генератор трасс для мотоджимханы. powered by Motogymkhana Glazov",
             font=("Segoe UI", 17, "bold"),
         ).pack(anchor="w")
 
@@ -513,8 +515,8 @@ class App(tk.Tk):
 
         ttk.Button(
             box,
-            text="Сохранить схему",
-            command=self.save,
+            text="Сохранить как",
+            command=self.save_as,
         ).pack(side=tk.LEFT, padx=4)
 
         body = ttk.Frame(self, padding=(12, 0, 12, 12))
@@ -812,25 +814,215 @@ class App(tk.Tk):
         self.info.insert("1.0", "\n".join(lines))
         self.info.configure(state=tk.DISABLED)
 
-    def save(self):
+    def save_as(self):
         if not self.track:
             return
 
         path = filedialog.asksaveasfilename(
             title="Сохранить схему",
-            defaultextension=".ps",
-            filetypes=[("PostScript (*.ps)", "*.ps")],
+            defaultextension=".png",
+            filetypes=[
+                ("PNG — изображение", "*.png"),
+                ("JPG — изображение", "*.jpg"),
+                ("JPEG — изображение", "*.jpeg"),
+            ],
         )
 
-        if path:
-            try:
-                self.canvas.postscript(file=path, colormode="color")
-                self.status.set(
-                    "Сохранено: " + path
-                    + " (PS; можно конвертировать в PNG/PDF)"
+        if not path:
+            return
+
+        try:
+            import os
+            from PIL import Image, ImageDraw, ImageFont
+
+            track = self.track
+
+            # Масштаб экспорта: 40 пикселей на метр.
+            scale = 40
+            padding = 100
+            label_space = 55
+
+            width = int(track.width * scale + 2 * padding)
+            height = int(
+                track.height * scale + 2 * padding + label_space
+            )
+
+            # Белый фон подходит и для PNG, и для JPG.
+            img = Image.new("RGB", (width, height), "white")
+            draw = ImageDraw.Draw(img)
+
+            def get_font(size, bold=False):
+                candidates = (
+                    ["segoeuib.ttf", "arialbd.ttf"]
+                    if bold
+                    else ["segoeui.ttf", "arial.ttf"]
                 )
-            except Exception as error:
-                messagebox.showerror("Ошибка сохранения", str(error))
+
+                for name in candidates:
+                    try:
+                        return ImageFont.truetype(name, size)
+                    except OSError:
+                        pass
+
+                return ImageFont.load_default()
+
+            font = get_font(24)
+            small_font = get_font(18)
+            bold_font = get_font(22, bold=True)
+
+            ox = padding
+            oy = padding
+            s = scale
+
+            x2 = ox + track.width * s
+            y2 = oy + track.height * s
+
+            # Площадка.
+            draw.rectangle(
+                (ox, oy, x2, y2),
+                fill="#fbfcfd",
+                outline="#252a30",
+                width=4,
+            )
+
+            # Метровая сетка.
+            for meter in range(1, int(track.width)):
+                x = ox + meter * s
+                draw.line(
+                    (x, oy, x, y2),
+                    fill="#edf0f2",
+                    width=1,
+                )
+
+            for meter in range(1, int(track.height)):
+                y = oy + meter * s
+                draw.line(
+                    (ox, y, x2, y),
+                    fill="#edf0f2",
+                    width=1,
+                )
+
+            # Размеры площадки.
+            draw.text(
+                ((ox + x2) / 2, oy - 42),
+                f"{track.width:g} м",
+                fill="#171717",
+                font=bold_font,
+                anchor="mm",
+            )
+
+            draw.text(
+                (ox - 48, (oy + y2) / 2),
+                f"{track.height:g} м",
+                fill="#171717",
+                font=bold_font,
+                anchor="mm",
+            )
+
+            # Общие ворота старта и финиша.
+            (ax, ay), (bx, by) = track.start_gate
+
+            draw.line(
+                (
+                    ox + ax * s,
+                    oy + ay * s,
+                    ox + bx * s,
+                    oy + by * s,
+                ),
+                fill="#2e8b57",
+                width=8,
+            )
+
+            gate_label = "СТАРТ / ФИНИШ"
+            draw.text(
+                (
+                    ox + (ax + bx) * s / 2,
+                    oy + ay * s - 24,
+                ),
+                gate_label,
+                fill="#2e8b57",
+                font=small_font,
+                anchor="mm",
+            )
+
+            colors = {
+                "red": "#d62728",
+                "blue": "#1769d2",
+                "red_yellow": "#d62728",
+                "blue_yellow": "#1769d2",
+                "yellow": "#f2c500",
+                "gate_start": "#2e8b57",
+                "gate_finish": "#222222",
+            }
+
+            # Конусы.
+            radius = max(10, int(s * 0.38))
+
+            for cone in track.cones:
+                x = ox + cone.x * s
+                y = oy + cone.y * s
+                r = radius
+                color = colors.get(cone.kind, "#888888")
+
+                draw.ellipse(
+                    (x - r, y - r, x + r, y + r),
+                    fill=color,
+                    outline="#171717",
+                    width=3,
+                )
+
+                # Жёлтая полоса на конусах вращения.
+                if cone.kind in ("red_yellow", "blue_yellow"):
+                    draw.line(
+                        (x - int(r * 0.72), y,
+                         x + int(r * 0.72), y),
+                        fill="#ffe64a",
+                        width=max(4, int(r * 0.55)),
+                    )
+
+                # Белая метка на стойках ворот.
+                elif cone.kind in ("gate_start", "gate_finish"):
+                    draw.line(
+                        (x - r // 2, y - r // 2,
+                         x + r // 2, y + r // 2),
+                        fill="white",
+                        width=4,
+                    )
+
+            # Подпись внизу схемы.
+            draw.text(
+                (ox, y2 + 22),
+                "Схема площадки для мотоджимханы",
+                fill="#666666",
+                font=small_font,
+            )
+
+            # Выбираем формат по расширению файла.
+            extension = os.path.splitext(path)[1].lower()
+
+            if extension in (".jpg", ".jpeg"):
+                img.save(path, format="JPEG", quality=95)
+            else:
+                if extension != ".png":
+                    path += ".png"
+                img.save(path, format="PNG")
+
+            self.status.set("Схема сохранена: " + path)
+
+            messagebox.showinfo(
+                "Готово",
+                f"Изображение сохранено:\n{path}",
+            )
+
+        except Exception as error:
+            messagebox.showerror(
+                "Ошибка сохранения",
+                f"Не удалось сохранить изображение:\n{error}",
+            )
+
+
+
+
 
 
 if __name__ == "__main__":

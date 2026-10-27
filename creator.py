@@ -843,8 +843,11 @@ class App(tk.Tk):
             label_space = 55
 
             width = int(track.width * scale + 2 * padding)
+            brand_space = 100
+
             height = int(
-                track.height * scale + 2 * padding + label_space
+                track.height * scale + 2 * padding
+                + label_space + brand_space
             )
 
             # Белый фон подходит и для PNG, и для JPG.
@@ -999,6 +1002,29 @@ class App(tk.Tk):
 
             # Выбираем формат по расширению файла.
             extension = os.path.splitext(path)[1].lower()
+
+            # Фирменная подпись в правом нижнем углу
+            brand_y = height - 65
+            brand_right = width - 25
+
+            powered_font = get_font(18)
+            brand_font = get_font(22, bold=True)
+
+            draw.text(
+                (brand_right, brand_y),
+                "powered by",
+                fill="#666666",
+                font=powered_font,
+                anchor="ra",
+            )
+
+            draw.text(
+                (brand_right, brand_y + 27),
+                "МОТОДЖИМХАНА ГЛАЗОВ",
+                fill="#252a30",
+                font=brand_font,
+                anchor="ra",
+            )
 
             if extension in (".jpg", ".jpeg"):
                 img.save(path, format="JPEG", quality=95)

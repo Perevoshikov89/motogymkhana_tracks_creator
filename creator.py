@@ -84,12 +84,19 @@ class TrackGenerator:
         mirror_pairs = []
         
         # Максимальное количество элементов «зеркало».
-        # 8–25 конусов — 1 пара, 26–49 — 2 пары,
-        # далее количество увеличивается по диапазонам.
+        # 8–25 конусов — 1 пара, 26–49 — 2 пары и далее.
         if self.count <= 25:
             max_mirrors = 1
         else:
             max_mirrors = (self.count - 1) // 25 + 1
+
+        # Лимит вращений отдельно для каждого направления.
+        # 8–24 конуса — по 1, 25–49 — по 2,
+        # 50–74 — по 3, 75–99 — по 4 и далее.
+        max_spins_per_direction = max(1, (self.count - 1) // 25 + 1)
+
+        spins_right = 0
+        spins_left = 0
 
         spin_probability = {
             "Начальный": 0.08,
@@ -182,15 +189,34 @@ class TrackGenerator:
 
             roll = self.rng.random()
 
-            if roll < spin_probability:
+            can_spin_right = spins_right < max_spins_per_direction
+            can_spin_left = spins_left < max_spins_per_direction
+
+            if roll < spin_probability and can_spin_right:
                 kind = "red_yellow"
                 label = "Вращение 360° вправо"
-            elif roll < spin_probability * 2:
+                spins_right += 1
+
+            elif (
+                roll < spin_probability * 2
+                and can_spin_left
+            ):
                 kind = "blue_yellow"
                 label = "Вращение 360° влево"
+                spins_left += 1
+
+            elif can_spin_right and not can_spin_left:
+                kind = "red"
+                label = "Правый поворот"
+
+            elif can_spin_left and not can_spin_right:
+                kind = "blue"
+                label = "Левый поворот"
+
             elif self.rng.random() < 0.5:
                 kind = "red"
                 label = "Правый поворот"
+
             else:
                 kind = "blue"
                 label = "Левый поворот"

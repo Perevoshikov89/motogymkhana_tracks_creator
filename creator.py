@@ -62,7 +62,7 @@ class TrackGenerator:
         # Ворота расположены по центру коротких сторон площадки.
         # Старт и финиш — одни и те же ворота
         gate_half_width = 1.5
-        start_y = 3.0
+        start_y = self.h - 3.0
         finish_y = start_y
         center_x = self.w / 2
 
@@ -111,12 +111,15 @@ class TrackGenerator:
             )
 
         def away_from_gates(x, y):
-            # Не размещаем элементы рядом с воротами и линиями старта/финиша.
-            if abs(y - start_y) < 2.0 or abs(y - finish_y) < 2.0:
+            # Оставляем свободную зону вокруг общего створа.
+            if abs(y - start_y) < 2.0:
                 return False
 
             for gate_cone in gate_cones:
-                if math.dist((x, y), (gate_cone.x, gate_cone.y)) < 4.0:
+                if math.dist(
+                    (x, y),
+                    (gate_cone.x, gate_cone.y)
+                ) < 4.0:
                     return False
 
             return True
@@ -261,7 +264,7 @@ class TrackGenerator:
 
     def _build_route(self, cones, start_y, finish_y, center_x):
         """Строит маршрут с обходом конусов и общим створом старта/финиша."""
-        start = (center_x, start_y + 1.0)
+        start = (center_x, start_y - 1.0)
         route = [start]
         remaining = cones[:]
         current = start
@@ -736,7 +739,7 @@ class App(tk.Tk):
 
         self.canvas.create_text(
             ox + (ax + bx) * scale / 2,
-            oy + ay * scale - 12,
+            oy + ay * scale - -12,
             text="СТАРТ / ФИНИШ",
             fill="#2e8b57",
             font=("Segoe UI", 8, "bold"),

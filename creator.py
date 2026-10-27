@@ -88,12 +88,12 @@ class TrackGenerator:
         if self.count <= 25:
             max_mirrors = 1
         else:
-            max_mirrors = (self.count - 1) // 25 + 1
+            max_mirrors = self.count // 25 + 1
 
         # Лимит вращений отдельно для каждого направления.
         # 8–24 конуса — по 1, 25–49 — по 2,
         # 50–74 — по 3, 75–99 — по 4 и далее.
-        max_spins_per_direction = max(1, (self.count - 1) // 25 + 1)
+        max_spins_per_direction = max(1, self.count // 25 + 1)
 
         spins_right = 0
         spins_left = 0
@@ -192,7 +192,19 @@ class TrackGenerator:
             can_spin_right = spins_right < max_spins_per_direction
             can_spin_left = spins_left < max_spins_per_direction
 
-            if roll < spin_probability and can_spin_right:
+            red_count = sum(
+                1 for c in cones if c.kind in ("red", "red_yellow")
+            )
+            blue_count = sum(
+                1 for c in cones if c.kind in ("blue", "blue_yellow")
+            )
+
+            # Вращения вправо и влево — с учётом лимитов и баланса.
+            if (
+                roll < spin_probability
+                and can_spin_right
+                and red_count - blue_count < 3
+            ):
                 kind = "red_yellow"
                 label = "Вращение 360° вправо"
                 spins_right += 1
@@ -200,20 +212,25 @@ class TrackGenerator:
             elif (
                 roll < spin_probability * 2
                 and can_spin_left
+                and blue_count - red_count < 3
             ):
                 kind = "blue_yellow"
                 label = "Вращение 360° влево"
                 spins_left += 1
 
-            elif can_spin_right and not can_spin_left:
+            # Если вращение не выбрано, балансируем обычные повороты.
+            elif red_count - blue_count < 0:
                 kind = "red"
                 label = "Правый поворот"
 
-            elif can_spin_left and not can_spin_right:
+            elif blue_count - red_count < 0:
                 kind = "blue"
                 label = "Левый поворот"
 
-            elif self.rng.random() < 0.5:
+            elif red_count - blue_count < 3 and (
+                blue_count - red_count >= 3
+                or self.rng.random() < 0.5
+            ):
                 kind = "red"
                 label = "Правый поворот"
 
@@ -385,13 +402,10 @@ class TrackGenerator:
             (exit_x, exit_y),
         ]
 
-    @staticmethod
+
     @staticmethod
     def _smooth_route(points, samples=5):
-        """
-        Плотная линейная интерполяция без выхода за пределы
-        построенной траектории. Не срезает углы дуг, как Catmull–Rom.
-        """
+        """Плотная линейная интерполяция построенной траектории."""
         if len(points) < 2:
             return points[:]
 
@@ -829,7 +843,7 @@ class App(tk.Tk):
             f"Левые повороты: {counts.get('blue', 0)}",
             f"Вращения вправо: {counts.get('red_yellow', 0)}",
             f"Вращения влево: {counts.get('blue_yellow', 0)}",
-            f"Жёлтые конусы зеркала: {counts.get('yellow', 0)}",
+            f"Жёлтые конусы (зеркало): {counts.get('yellow', 0)}",
             "",
             "Ворота:",
             "• старт - финиш — 4 стойки",

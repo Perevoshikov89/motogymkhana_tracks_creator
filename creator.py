@@ -205,30 +205,22 @@ class TrackGenerator:
         )
 
     def _build_route(self, cones, start_y, finish_y, center_x):
-        """
-        Траектория строится через случайную последовательность элементов.
-        Красный — обход с правой стороны направления движения.
-        Синий — обход с левой стороны направления движения.
-        Красно-жёлтый и сине-жёлтый — круг на 360 градусов.
-        """
-        route = [(center_x, start_y + 1.0)]
+        """Строит маршрут с обходом конусов и общим створом старта/финиша."""
+        start = (center_x, start_y + 1.0)
+        route = [start]
         remaining = cones[:]
-        current = route[-1]
+        current = start
 
         while remaining:
-            # Выбираем случайный элемент из ближайших, чтобы маршрут
-            # не превращался ни в строгую змейку, ни в хаотичную кашу.
             ordered = sorted(
                 remaining,
-                key=lambda c: math.dist(current, (c.x, c.y)),
+                key=lambda c: math.dist(current, (c.x, c.y))
             )
-
             pool = ordered[:min(4, len(ordered))]
             cone = self.rng.choice(pool)
             remaining.remove(cone)
 
             if cone.kind == "yellow":
-                # Обрабатываем вторую стойку зеркала сразу после первой.
                 mate = next(
                     (
                         other for other in remaining
@@ -240,32 +232,29 @@ class TrackGenerator:
 
                 if mate is not None:
                     remaining.remove(mate)
-                    route.extend(
-                        self._mirror_waypoints(cone, mate, current)
-                    )
-                    current = (
-                        (cone.x + mate.x) / 2,
-                        (cone.y + mate.y) / 2,
-                    )
+                    points = self._mirror_waypoints(cone, mate, current)
+                    route.extend(points)
+                    current = points[-1]
                 else:
-                    route.append((cone.x, cone.y))
-                    current = (cone.x, cone.y)
+                    points = self._turn_waypoints(
+                        cone.x, cone.y, current, 1
+                    )
+                    route.extend(points)
+                    current = points[-1]
 
             elif cone.kind == "red_yellow":
-                route.extend(
-                    self._spin_waypoints(
-                        cone.x, cone.y, clockwise=True
-                    )
+                points = self._spin_waypoints(
+                    cone.x, cone.y, current, clockwise=True
                 )
-                current = (cone.x, cone.y)
+                route.extend(points)
+                current = points[-1]
 
             elif cone.kind == "blue_yellow":
-                route.extend(
-                    self._spin_waypoints(
-                        cone.x, cone.y, clockwise=False
-                    )
+                points = self._spin_waypoints(
+                    cone.x, cone.y, current, clockwise=False
                 )
-                current = (cone.x, cone.y)
+                route.extend(points)
+                current = points[-1]
 
             else:
                 side = 1 if cone.kind == "red" else -1
@@ -273,59 +262,67 @@ class TrackGenerator:
                     cone.x, cone.y, current, side
                 )
                 route.extend(points)
-                current = (cone.x, cone.y)
+                current = points[-1]
 
-        # Маршрут возвращается к тем же воротам, откуда начался
-        route.append((center_x, start_y + 1.0))
+        # Возвращение в тот же створ.
+        route.append(start)
 
+        # Не применять Catmull–Rom: он может срезать дуги
+        # и провести линию через конусы.
         return self._smooth_route(route, samples=5)
 
     def _turn_waypoints(self, x, y, previous, side):
-        """Три точки дуги обхода конуса с заданной стороны."""
-        dx = x - previous[0]
-        dy = y - previous[1]
-        length = max(0.001, math.hypot(dx, dy))
+        """Дуга обхода конуса с безопасным радиусом."""
 
-        # Правая нормаль к направлению движения в координатах Canvas.
-        right_x = -dy / length
-        right_y = dx / length
+        radius = 1.7
 
-        offset = 1.8 * side
-        lead = 2.0
+        dx = previous[0] - x
+        dy = previous[1] - y
+        distance = math.hypot(dx, dy)
 
-        return [
-            (
-                x - dx / length * lead + right_x * offset,
-                y - dy / length * lead + right_y * offset,
-            ),
-            (
-                x + right_x * offset,
-                y + right_y * offset,
-            ),
-            (
-                x + dx / length * lead + right_x * offset,
-                y + dy / length * lead + right_y * offset,
-            ),
-        ]
+        if distance < 0.001:
+            start_angle = -math.pi / 2
+        else:
+            start_angle = math.atan2(dy, dx)
 
-    def _spin_waypoints(self, x, y, clockwise=True):
-        """Петля вокруг центра элемента 360°."""
-        radius = max(1.3, min(2.0, min(self.w, self.h) / 18.0))
-        sign = 1 if clockwise else -1
-        start_angle = -math.pi / 2
+        # Полукруг начинается со стороны подхода к конусу.
+        # Направление обхода зависит от типа конуса.
+        direction = 1 if side >= 0 else -1
+        points = []
 
-        return [
-            (
-                x + radius * math.cos(
-                    start_angle + sign * i * math.tau / 32
-                ),
-                y + radius * math.sin(
-                    start_angle + sign * i * math.tau / 32
-                ),
-            )
-            for i in range(33)
-        ]
+        for i in range(25):
+            angle = start_angle + direction * math.pi * i / 24
+            points.append((
+                x + radius * math.cos(angle),
+                y + radius * math.sin(angle),
+            ))
 
+        return points
+    def _spin_waypoints(self, x, y, previous, clockwise=True):
+        """Полный круг вокруг конуса с безопасным радиусом."""
+
+        radius = 1.7
+
+        dx = previous[0] - x
+        dy = previous[1] - y
+
+        if math.hypot(dx, dy) < 0.001:
+            start_angle = -math.pi / 2
+        else:
+            start_angle = math.atan2(dy, dx)
+
+        direction = 1 if clockwise else -1
+        points = []
+
+        # Полный круг с плотными точками, без прямых срезов.
+        for i in range(49):
+            angle = start_angle + direction * math.tau * i / 48
+            points.append((
+                x + radius * math.cos(angle),
+                y + radius * math.sin(angle),
+            ))
+
+        return points
     def _mirror_waypoints(self, first, second, previous):
         """Подход к зеркалу, проход между конусами и выход."""
         cx = (first.x + second.x) / 2
@@ -351,7 +348,31 @@ class TrackGenerator:
         ]
 
     @staticmethod
+    @staticmethod
     def _smooth_route(points, samples=5):
+        """
+        Плотная линейная интерполяция без выхода за пределы
+        построенной траектории. Не срезает углы дуг, как Catmull–Rom.
+        """
+        if len(points) < 2:
+            return points[:]
+
+        result = []
+
+        for i in range(len(points) - 1):
+            x1, y1 = points[i]
+            x2, y2 = points[i + 1]
+
+            for j in range(samples):
+                t = j / samples
+                result.append((
+                    x1 + (x2 - x1) * t,
+                    y1 + (y2 - y1) * t,
+                ))
+
+        result.append(points[-1])
+        return result
+
         """Сглаживание траектории Catmull–Rom."""
         if len(points) < 3:
             return points
@@ -500,8 +521,7 @@ class App(tk.Tk):
             ("#d62728", "Красный + жёлтая полоса — 360° вправо", True),
             ("#1769d2", "Синий + жёлтая полоса — 360° влево", True),
             ("#f2c500", "Два жёлтых — зеркало (3–4 м)", False),
-            ("#2e8b57", "Стартовые ворота", False),
-            ("#222222", "Финишные ворота", False),
+            ("#2e8b57", "Ворота старт/финиш", False),
         ]
 
         for color, text, stripe in legend:

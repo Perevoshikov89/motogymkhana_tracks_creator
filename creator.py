@@ -425,40 +425,6 @@ class TrackGenerator:
         result.append(points[-1])
         return result
 
-        """Сглаживание траектории Catmull–Rom."""
-        if len(points) < 3:
-            return points
-
-        padded = [points[0]] + points + [points[-1]]
-        result = []
-
-        for i in range(1, len(padded) - 2):
-            p0, p1, p2, p3 = padded[i - 1:i + 3]
-
-            for j in range(samples):
-                t = j / samples
-                t2 = t * t
-                t3 = t2 * t
-
-                x = 0.5 * (
-                    2 * p1[0]
-                    + (-p0[0] + p2[0]) * t
-                    + (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2
-                    + (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3
-                )
-
-                y = 0.5 * (
-                    2 * p1[1]
-                    + (-p0[1] + p2[1]) * t
-                    + (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2
-                    + (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3
-                )
-
-                result.append((x, y))
-
-        result.append(points[-1])
-        return result
-
 
 # ============================================================
 # ГРАФИЧЕСКИЙ ИНТЕРФЕЙС
@@ -846,7 +812,7 @@ class App(tk.Tk):
             f"Жёлтые конусы (зеркало): {counts.get('yellow', 0)}",
             "",
             "Ворота:",
-            "• старт - финиш — 4 стойки",
+            "• старт / финиш — 2 стойки, общий створ",
             "",
 
             "Важно: траектория схематическая. Проверьте её на площадке.",

@@ -709,23 +709,7 @@ class App(tk.Tk):
             font=("Segoe UI", 10, "bold"),
         )
 
-        # Пунктирная сглаженная траектория без нумерации конусов.
-        route_points = []
 
-        for x, y in self.track.route:
-            route_points.extend([
-                ox + x * scale,
-                oy + y * scale,
-            ])
-
-        if len(route_points) >= 4:
-            self.canvas.create_line(
-                *route_points,
-                fill="#707982",
-                width=2,
-                dash=(6, 4),
-                arrow=tk.LAST,
-            )
 
         # Единый створ старта и финиша
         (ax, ay), (bx, by) = self.track.start_gate

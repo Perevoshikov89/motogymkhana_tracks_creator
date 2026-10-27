@@ -82,6 +82,14 @@ class TrackGenerator:
         regular_count = self.count - len(gate_cones)
         cones = []
         mirror_pairs = []
+        
+        # Максимальное количество элементов «зеркало».
+        # 8–25 конусов — 1 пара, 26–49 — 2 пары,
+        # далее количество увеличивается по диапазонам.
+        if self.count <= 25:
+            max_mirrors = 1
+        else:
+            max_mirrors = (self.count - 1) // 25 + 1
 
         spin_probability = {
             "Начальный": 0.08,
@@ -121,7 +129,11 @@ class TrackGenerator:
             remaining = regular_count - len(cones)
 
             # Зеркало состоит строго из двух жёлтых конусов.
-            if remaining >= 2 and self.rng.random() < 0.12:
+            if (
+                remaining >= 2
+                and len(mirror_pairs) < max_mirrors
+                and self.rng.random() < 0.12
+            ):
                 angle = self.rng.uniform(0, math.tau)
                 dx = (self.MIRROR_SPACING / 2) * math.cos(angle)
                 dy = (self.MIRROR_SPACING / 2) * math.sin(angle)

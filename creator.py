@@ -60,9 +60,10 @@ class TrackGenerator:
             )
 
         # Ворота расположены по центру коротких сторон площадки.
+        # Старт и финиш — одни и те же ворота
         gate_half_width = 1.5
         start_y = 3.0
-        finish_y = self.h - 3.0
+        finish_y = start_y
         center_x = self.w / 2
 
         start_gate = (
@@ -70,16 +71,12 @@ class TrackGenerator:
             (center_x + gate_half_width, start_y),
         )
 
-        finish_gate = (
-            (center_x - gate_half_width, finish_y),
-            (center_x + gate_half_width, finish_y),
-        )
+        # Финиш использует тот же створ, что и старт
+        finish_gate = start_gate
 
         gate_cones = [
-            Cone(*start_gate[0], "gate_start", "Старт"),
-            Cone(*start_gate[1], "gate_start", "Старт"),
-            Cone(*finish_gate[0], "gate_finish", "Финиш"),
-            Cone(*finish_gate[1], "gate_finish", "Финиш"),
+            Cone(*start_gate[0], "gate_start", "Старт / финиш"),
+            Cone(*start_gate[1], "gate_start", "Старт / финиш"),
         ]
 
         regular_count = self.count - len(gate_cones)
@@ -278,7 +275,8 @@ class TrackGenerator:
                 route.extend(points)
                 current = (cone.x, cone.y)
 
-        route.append((center_x, finish_y - 1.0))
+        # Маршрут возвращается к тем же воротам, откуда начался
+        route.append((center_x, start_y + 1.0))
 
         return self._smooth_route(route, samples=5)
 
@@ -686,31 +684,25 @@ class App(tk.Tk):
                 arrow=tk.LAST,
             )
 
-        # Стартовая и финишная линии.
-        gates = [
-            (self.track.start_gate, "#2e8b57", "СТАРТ"),
-            (self.track.finish_gate, "#222222", "ФИНИШ"),
-        ]
+        # Единый створ старта и финиша
+        (ax, ay), (bx, by) = self.track.start_gate
 
-        for gate, color, label in gates:
-            (ax, ay), (bx, by) = gate
+        self.canvas.create_line(
+            ox + ax * scale,
+            oy + ay * scale,
+            ox + bx * scale,
+            oy + by * scale,
+            fill="#2e8b57",
+            width=4,
+        )
 
-            self.canvas.create_line(
-                ox + ax * scale,
-                oy + ay * scale,
-                ox + bx * scale,
-                oy + by * scale,
-                fill=color,
-                width=3,
-            )
-
-            self.canvas.create_text(
-                ox + (ax + bx) * scale / 2,
-                oy + ay * scale - 12,
-                text=label,
-                fill=color,
-                font=("Segoe UI", 8, "bold"),
-            )
+        self.canvas.create_text(
+            ox + (ax + bx) * scale / 2,
+            oy + ay * scale - 12,
+            text="СТАРТ / ФИНИШ",
+            fill="#2e8b57",
+            font=("Segoe UI", 8, "bold"),
+        )
 
         radius = max(5, min(10, scale * 0.38))
 

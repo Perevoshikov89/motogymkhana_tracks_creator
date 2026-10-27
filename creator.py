@@ -41,6 +41,8 @@ class TrackGenerator:
     MIRROR_SPACING = 3.5
     MARGIN = 2.0
 
+    
+
     def __init__(self, w, h, count, difficulty, seed=None):
         self.w = w
         self.h = h

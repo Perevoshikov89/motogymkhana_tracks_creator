@@ -792,6 +792,7 @@ class App(tk.Tk):
             font=("Segoe UI", 5, "bold"),
         )
 
+        
         radius = max(5, min(10, scale * 0.38))
 
         colors = {

@@ -452,12 +452,12 @@ class App(tk.Tk):
         self.generate()
 
     def build(self):
-        top = ttk.Frame(self, padding=4)
+        top = ttk.Frame(self, padding=(8, 3, 8, 5))
         top.pack(fill=tk.X)
 
         # Заголовок приложения
         title_frame = ttk.Frame(top)
-        title_frame.pack(anchor="w")
+        title_frame.pack(anchor="w", pady=0)
 
         ttk.Label(
             title_frame,
@@ -504,7 +504,7 @@ class App(tk.Tk):
         ttk.Label(
             top,
             text="Схема сверху • размеры в метрах • случайная расстановка",
-        ).pack(anchor="w", pady=(2, 8))
+        ).pack(anchor="w", pady=(1, 4))
 
         box = ttk.LabelFrame(top, text="Параметры", padding=8)
         box.pack(fill=tk.X)

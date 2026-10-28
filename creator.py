@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from dataclasses import dataclass
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageTk
 
 
 # ============================================================
@@ -455,11 +455,37 @@ class App(tk.Tk):
         top = ttk.Frame(self, padding=12)
         top.pack(fill=tk.X)
 
+        # Заголовок приложения
+        title_frame = ttk.Frame(top)
+        title_frame.pack(anchor="w")
+
         ttk.Label(
-            top,
-            text="Генератор трасс для мотоджимханы. powered by Motogymkhana Glazov",
+            title_frame,
+            text="Генератор трасс для мотоджимханы. powered by",
             font=("Segoe UI", 17, "bold"),
-        ).pack(anchor="w")
+        ).pack(side=tk.LEFT)
+
+        # Загрузка логотипа
+        logo_path = Path(__file__).resolve().parent / "logo.png"
+
+        self.header_logo = None
+
+        if logo_path.exists():
+            with Image.open(logo_path) as source:
+                logo = source.convert("RGBA")
+                logo.thumbnail((310, 130), Image.Resampling.LANCZOS)
+                self.header_logo = ImageTk.PhotoImage(logo)
+
+            ttk.Label(
+                title_frame,
+                image=self.header_logo,
+            ).pack(side=tk.LEFT, padx=(8, 0))
+        else:
+            ttk.Label(
+                title_frame,
+                text="Motogymkhana Glazov",
+                font=("Segoe UI", 17, "bold"),
+            ).pack(side=tk.LEFT, padx=(8, 0))
 
         ttk.Label(
             top,

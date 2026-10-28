@@ -1,5 +1,6 @@
+
 # -*- coding: utf-8 -*-
-"""MotoGymkhana Track Generator. Python 3.10+, standard library only."""
+"""MotoGymkhana Track Generator. Python 3.10+, standard library + Pillow."""
 from __future__ import annotations
 
 import math
@@ -30,8 +31,18 @@ class Track:
     cones: list[Cone]
     route: list[tuple[float, float]]
     seed: int
-    start_gate: tuple[tuple[float, float], tuple[float, float]]
-    finish_gate: tuple[tuple[float, float], tuple[float, float]]
+    start_gate: tuple[
+        tuple[float, float],
+        tuple[float, float],
+        tuple[float, float],
+        tuple[float, float],
+    ]
+    finish_gate: tuple[
+        tuple[float, float],
+        tuple[float, float],
+        tuple[float, float],
+        tuple[float, float],
+    ]
 
 
 # ============================================================
@@ -42,8 +53,6 @@ class TrackGenerator:
     MIN_SPACING = 4.0
     MIRROR_SPACING = 3.5
     MARGIN = 2.0
-
-    
 
     def __init__(self, w, h, count, difficulty, seed=None):
         self.w = w
@@ -63,30 +72,33 @@ class TrackGenerator:
                 "В количество входят стойки стартовых и финишных ворот."
             )
 
-        # Ворота расположены по центру коротких сторон площадки.
-        # Старт и финиш — одни и те же ворота
+        # Общие ворота старта и финиша — 4 конуса по углам квадрата.
         gate_half_width = 1.5
+        gate_half_length = 1.5
+
+        center_x = self.w / 2
         start_y = self.h - 3.0
         finish_y = start_y
-        center_x = self.w / 2
 
         start_gate = (
-            (center_x - gate_half_width, start_y),
-            (center_x + gate_half_width, start_y),
+            (center_x - gate_half_width, start_y - gate_half_length),  # верхний левый
+            (center_x + gate_half_width, start_y - gate_half_length),  # верхний правый
+            (center_x + gate_half_width, start_y + gate_half_length),  # нижний правый
+            (center_x - gate_half_width, start_y + gate_half_length),  # нижний левый
         )
 
-        # Финиш использует тот же створ, что и старт
         finish_gate = start_gate
 
         gate_cones = [
-            Cone(*start_gate[0], "gate_start", "Старт / финиш"),
-            Cone(*start_gate[1], "gate_start", "Старт / финиш"),
+            Cone(x, y, "gate_start", "Старт / финиш")
+            for x, y in start_gate
         ]
 
         regular_count = self.count - len(gate_cones)
+
         cones = []
         mirror_pairs = []
-        
+
         # Максимальное количество элементов «зеркало».
         # 8–25 конусов — 1 пара, 26–49 — 2 пары и далее.
         if self.count <= 25:
@@ -335,7 +347,6 @@ class TrackGenerator:
 
     def _turn_waypoints(self, x, y, previous, side):
         """Дуга обхода конуса с безопасным радиусом."""
-
         radius = 1.7
 
         dx = previous[0] - x
@@ -360,9 +371,9 @@ class TrackGenerator:
             ))
 
         return points
+
     def _spin_waypoints(self, x, y, previous, clockwise=True):
         """Полный круг вокруг конуса с безопасным радиусом."""
-
         radius = 1.7
 
         dx = previous[0] - x
@@ -385,6 +396,7 @@ class TrackGenerator:
             ))
 
         return points
+
     def _mirror_waypoints(self, first, second, previous):
         """Подход к зеркалу, проход между конусами и выход."""
         cx = (first.x + second.x) / 2
@@ -408,7 +420,6 @@ class TrackGenerator:
             (cx, cy),
             (exit_x, exit_y),
         ]
-
 
     @staticmethod
     def _smooth_route(points, samples=5):
@@ -464,7 +475,6 @@ class App(tk.Tk):
             text="Генератор трасс для мотоджимханы. powered by",
             font=("Segoe UI", 14, "bold"),
         ).pack(side=tk.LEFT)
-
 
         # Загрузка логотипа с удалением белого фона
         logo_path = Path(__file__).resolve().parent / "logo.png"
@@ -751,23 +761,32 @@ class App(tk.Tk):
             font=("Segoe UI", 10, "bold"),
         )
 
+        # Ворота старт/финиш — квадрат из четырёх конусов
+        gate = self.track.start_gate
 
+        points = [
+            (
+                ox + x * scale,
+                oy + y * scale,
+            )
+            for x, y in gate
+        ]
 
-        # Единый створ старта и финиша
-        (ax, ay), (bx, by) = self.track.start_gate
+        # Замыкаем квадрат: последняя вершина соединяется с первой
+        points.append(points[0])
 
         self.canvas.create_line(
-            ox + ax * scale,
-            oy + ay * scale,
-            ox + bx * scale,
-            oy + by * scale,
+            *[coord for point in points for coord in point],
             fill="#2e8b57",
             width=4,
         )
 
+        center_x = sum(x for x, y in points[:-1]) / 4
+        center_y = sum(y for x, y in points[:-1]) / 4
+
         self.canvas.create_text(
-            ox + (ax + bx) * scale / 2,
-            oy + ay * scale - -12,
+            center_x,
+            center_y,
             text="СТАРТ / ФИНИШ",
             fill="#2e8b57",
             font=("Segoe UI", 8, "bold"),
@@ -843,9 +862,8 @@ class App(tk.Tk):
             f"Жёлтые конусы (зеркало): {counts.get('yellow', 0)}",
             "",
             "Ворота:",
-            "• старт / финиш — 2 стойки, общий створ",
+            "• старт / финиш — 4 стойки, общий квадрат",
             "",
-
             "Важно: траектория схематическая. Проверьте её на площадке.",
         ]
 
@@ -962,27 +980,28 @@ class App(tk.Tk):
                 anchor="mm",
             )
 
-            # Общие ворота старта и финиша.
-            (ax, ay), (bx, by) = track.start_gate
+            # Четыре стойки ворот
+            gate_points = [
+                (ox + x * s, oy + y * s)
+                for x, y in track.start_gate
+            ]
 
-            draw.line(
-                (
-                    ox + ax * s,
-                    oy + ay * s,
-                    ox + bx * s,
-                    oy + by * s,
-                ),
-                fill="#2e8b57",
-                width=8,
-            )
+            for i in range(4):
+                p1 = gate_points[i]
+                p2 = gate_points[(i + 1) % 4]
 
-            gate_label = "СТАРТ / ФИНИШ"
+                draw.line(
+                    (*p1, *p2),
+                    fill="#2e8b57",
+                    width=4,
+                )
+
+            gate_center_x = sum(p[0] for p in gate_points) / 4
+            gate_top_y = min(p[1] for p in gate_points)
+
             draw.text(
-                (
-                    ox + (ax + bx) * s / 2,
-                    oy + ay * s - 24,
-                ),
-                gate_label,
+                (gate_center_x, gate_top_y - 24),
+                "СТАРТ / ФИНИШ",
                 fill="#2e8b57",
                 font=small_font,
                 anchor="mm",
@@ -1047,17 +1066,26 @@ class App(tk.Tk):
             brand_right = width - 25
             brand_y = height - 55
 
-            powered_font = get_font(56)
+            powered_font = get_font(28)
 
             logo_path = Path(__file__).resolve().parent / "logo.png"
-
             logo = None
 
             if logo_path.exists():
                 with Image.open(logo_path) as source:
                     logo = source.convert("RGBA")
 
-                logo.thumbnail((310, 135), Image.Resampling.LANCZOS)
+                # Удаляем белый фон логотипа
+                pixels = logo.load()
+
+                for y in range(logo.height):
+                    for x in range(logo.width):
+                        r, g, b, a = pixels[x, y]
+
+                        if r > 240 and g > 240 and b > 240:
+                            pixels[x, y] = (r, g, b, 0)
+
+                logo.thumbnail((155, 70), Image.Resampling.LANCZOS)
 
             # Ширина надписи powered by
             powered_text = "powered by"
@@ -1118,10 +1146,6 @@ class App(tk.Tk):
                 "Ошибка сохранения",
                 f"Не удалось сохранить изображение:\n{error}",
             )
-
-
-
-
 
 
 if __name__ == "__main__":

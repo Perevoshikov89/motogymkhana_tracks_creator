@@ -452,7 +452,7 @@ class App(tk.Tk):
         self.generate()
 
     def build(self):
-        top = ttk.Frame(self, padding=12)
+        top = ttk.Frame(self, padding=4)
         top.pack(fill=tk.X)
 
         # Заголовок приложения
@@ -462,10 +462,11 @@ class App(tk.Tk):
         ttk.Label(
             title_frame,
             text="Генератор трасс для мотоджимханы. powered by",
-            font=("Segoe UI", 17, "bold"),
+            font=("Segoe UI", 14, "bold"),
         ).pack(side=tk.LEFT)
 
-        # Загрузка логотипа
+
+        # Загрузка логотипа с удалением белого фона
         logo_path = Path(__file__).resolve().parent / "logo.png"
 
         self.header_logo = None
@@ -473,7 +474,20 @@ class App(tk.Tk):
         if logo_path.exists():
             with Image.open(logo_path) as source:
                 logo = source.convert("RGBA")
+
+                # Делаем белые и почти белые пиксели прозрачными
+                pixels = logo.load()
+
+                for y in range(logo.height):
+                    for x in range(logo.width):
+                        r, g, b, a = pixels[x, y]
+
+                        if r > 240 and g > 240 and b > 240:
+                            pixels[x, y] = (r, g, b, 0)
+
+                # Масштабируем логотип с сохранением пропорций
                 logo.thumbnail((310, 130), Image.Resampling.LANCZOS)
+
                 self.header_logo = ImageTk.PhotoImage(logo)
 
             ttk.Label(

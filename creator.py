@@ -786,10 +786,10 @@ class App(tk.Tk):
 
         self.canvas.create_text(
             center_x,
-            center_y,
+            max(y for x, y in points[:-1]) + 7,
             text="СТАРТ / ФИНИШ",
             fill="#2e8b57",
-            font=("Segoe UI", 8, "bold"),
+            font=("Segoe UI", 5, "bold"),
         )
 
         radius = max(5, min(10, scale * 0.38))
@@ -928,7 +928,7 @@ class App(tk.Tk):
                 return ImageFont.load_default()
 
             font = get_font(24)
-            small_font = get_font(18)
+            small_font = get_font(20)
             bold_font = get_font(22, bold=True)
 
             ox = padding
@@ -1000,7 +1000,7 @@ class App(tk.Tk):
             gate_top_y = min(p[1] for p in gate_points)
 
             draw.text(
-                (gate_center_x, gate_top_y - 24),
+                (gate_center_x, gate_top_y + 154),
                 "СТАРТ / ФИНИШ",
                 fill="#2e8b57",
                 font=small_font,

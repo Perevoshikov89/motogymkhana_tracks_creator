@@ -1003,12 +1003,11 @@ class App(tk.Tk):
             # Выбираем формат по расширению файла.
             extension = os.path.splitext(path)[1].lower()
 
-                        # Фирменная подпись и логотип в правом нижнем углу
             # Фирменная подпись и логотип в одну строку
             brand_right = width - 25
             brand_y = height - 55
 
-            powered_font = get_font(18)
+            powered_font = get_font(56)
 
             logo_path = Path(__file__).resolve().parent / "logo.png"
 
@@ -1018,7 +1017,7 @@ class App(tk.Tk):
                 with Image.open(logo_path) as source:
                     logo = source.convert("RGBA")
 
-                logo.thumbnail((220, 55), Image.Resampling.LANCZOS)
+                logo.thumbnail((310, 135), Image.Resampling.LANCZOS)
 
             # Ширина надписи powered by
             powered_text = "powered by"

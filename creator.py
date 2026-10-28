@@ -1003,28 +1003,62 @@ class App(tk.Tk):
             # Выбираем формат по расширению файла.
             extension = os.path.splitext(path)[1].lower()
 
-            # Фирменная подпись в правом нижнем углу
-            brand_y = height - 65
+                        # Фирменная подпись и логотип в правом нижнем углу
+            # Фирменная подпись и логотип в одну строку
             brand_right = width - 25
+            brand_y = height - 55
 
             powered_font = get_font(18)
-            brand_font = get_font(22, bold=True)
+
+            logo_path = Path(__file__).resolve().parent / "logo.png"
+
+            logo = None
+
+            if logo_path.exists():
+                with Image.open(logo_path) as source:
+                    logo = source.convert("RGBA")
+
+                logo.thumbnail((220, 55), Image.Resampling.LANCZOS)
+
+            # Ширина надписи powered by
+            powered_text = "powered by"
+            bbox = draw.textbbox(
+                (0, 0),
+                powered_text,
+                font=powered_font,
+            )
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            gap = 10
+            logo_width = logo.width if logo else 0
+
+            # Общая ширина подписи и логотипа
+            total_width = (
+                text_width + gap + logo_width
+                if logo
+                else text_width
+            )
+
+            start_x = brand_right - total_width
+            text_y = brand_y - text_height // 2
 
             draw.text(
-                (brand_right, brand_y),
-                "powered by",
+                (start_x, text_y),
+                powered_text,
                 fill="#666666",
                 font=powered_font,
-                anchor="ra",
             )
 
-            draw.text(
-                (brand_right, brand_y + 27),
-                "МОТОДЖИМХАНА ГЛАЗОВ",
-                fill="#252a30",
-                font=brand_font,
-                anchor="ra",
-            )
+            if logo:
+                logo_x = start_x + text_width + gap
+                logo_y = brand_y - logo.height // 2
+
+                img.paste(
+                    logo,
+                    (int(logo_x), int(logo_y)),
+                    logo,
+                )
 
             if extension in (".jpg", ".jpeg"):
                 img.save(path, format="JPEG", quality=95)
